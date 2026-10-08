@@ -233,4 +233,4 @@ claims about real-world fraud rates.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+[MIT](LICENSE) © Angelo David Padilla Romero
