@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: fraudguard
+  # Run the web tier (and @Async work) on Java 21 virtual threads. The event bus
+  # has its own virtual-thread executor; see config/VirtualThreadConfig.java.
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+
+# FraudGuard scoring configuration. Every threshold and rule weight is an
+# operator dial, bound to config/ScoringProperties.java. Tune without a recompile.
+fraudguard:
+  # Sliding window for velocity features (ISO-8601 duration).
+  window: PT10M
+  # Decision thresholds on the aggregated 0-100 risk score.
+  review-threshold: 40
+  decline-threshold: 70
+  # Amount-spike rule: fires when amount >= amount-factor * recent average,
+  # given at least min-history prior transactions in the window.
+  velocity:
+    amount-factor: 5.0
+    min-history: 3
+    weight: 30
+  # Frequency rule: fires when prior count in the window reaches threshold.
+  frequency:
+    threshold: 5
+    weight: 25
+  # Impossible-travel rule: fires when implied speed between two countries
+  # exceeds max-speed-kmh (900 km/h ~ a jet airliner).
+  travel:
+    max-speed-kmh: 900.0
+    weight: 40
+  # Round-amount + high-value rule: fires on an exact multiple of 100.00 at or
+  # above min-value-cents.
+  round-amount:
+    min-value-cents: 100000
+    weight: 15
+  # New / high-risk country rule.
+  new-country:
+    weight: 20
+    high-risk-weight: 30
+
+logging:
+  level:
+    com.angelo.fraudguard: INFO

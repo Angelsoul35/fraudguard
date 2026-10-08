@@ -1,0 +1,9 @@
+target/
+.git/
+.github/
+docs/
+*.md
+.gitignore
+.idea/
+*.iml
+.vscode/
