@@ -14,6 +14,13 @@ offline with no broker and no database. The seams are deliberate — the
 `EventBus` interface has a documented Kafka implementation path — so the same
 code grows into a distributed pipeline without a rewrite.
 
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](.github/workflows/ci.yml)
+[![Java](https://img.shields.io/badge/java-21-blue)](pom.xml)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-brightgreen)](pom.xml)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+---
+
 ## Why it matters
 
 Card fraud is a streaming problem: decisions must land in milliseconds, each on
