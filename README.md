@@ -145,6 +145,101 @@ clamped to `[0, 100]`; the decision is a threshold on the score (`REVIEW` at 40,
 Decision bands on the aggregated score: `0–39` → `APPROVE`, `40–69` → `REVIEW`,
 `70–100` → `DECLINE`.
 
+## Benchmark on real card-fraud data
+
+The rules above are not only unit-tested in isolation — the **production scorer**
+is run end to end over a **real, labelled card-transaction dataset** and measured
+with proper imbalanced-classification metrics. The benchmark lives in
+[`benchmark/`](src/main/java/com/angelo/fraudguard/benchmark) and is asserted by
+`RealDataBenchmarkTest`.
+
+**Dataset.** The [Sparkov *Credit Card Transactions Fraud Detection*](https://huggingface.co/datasets/pointe77/credit-card-transaction)
+benchmark (Hugging Face mirror, Apache-2.0). It is a faithful fit because
+FraudGuard scores transaction-level velocity and location, and this dataset
+carries exactly those fields — card number, amount, event timestamp, merchant and
+location — one row per transaction, labelled fraud/not. (The ULB `creditcard` set,
+by contrast, exposes only PCA-anonymised components with no card id, time or
+place, so a per-card velocity engine cannot run over it.) A 150,000-transaction
+snapshot is vendored under
+[`src/test/resources/data/`](src/test/resources/data/README.md) with its source,
+licence and a one-command regeneration script. Fraud is **0.918 %** of rows —
+heavily imbalanced, as real card fraud is.
+
+**Method.** The dataset is split **by card** (never by transaction — a card's
+whole history goes to one side, so velocity never leaks across the split) into a
+development pool and a held-out set of unseen cards. We report a majority/random
+baseline, 5-fold cross-validation on development, the held-out test, and a
+**negative control** that shuffles the labels. Because the scorer is a fixed,
+explainable expert system with no parameters fit to data, generalisation is
+judged by **cross-validation ↔ held-out agreement**, not a train/test gap.
+
+```
+FraudGuard real-data benchmark
+  dataset ...........: Sparkov Credit Card Transactions Fraud Detection (vendored snapshot)
+  samples ...........: 150,000 transactions, 1,377 fraud (base rate 0.0092 = 0.918%)
+  split .............: 111,414 dev (1,028 fraud) / 38,586 held-out (349 fraud), card-disjoint
+  window / review / decline : PT720H / 40 / 70
+  precision floor for recall@precision : 0.10
+
+  baseline (majority / random):
+    PR-AUC  = base rate   = 0.0092
+    ROC-AUC = 0.5000
+
+  5-fold cross-validation over development cards (mean +/- std):
+    PR-AUC  (avg precision) = 0.0564 +/- 0.0039
+    ROC-AUC                 = 0.7172 +/- 0.0191
+    recall@precision        = 0.3660 +/- 0.1854
+
+  development pool (all dev cards):
+    PR-AUC = 0.0559   ROC-AUC = 0.7138   recall@precision = 0.4630
+
+  HELD-OUT TEST (unseen cards):
+    PR-AUC  (avg precision) = 0.0571   (6.3x the base rate of 0.0090)
+    ROC-AUC                 = 0.7197
+    recall@precision(0.10)  = 0.4756
+
+  CV<->held-out agreement : |0.7172 - 0.7197| = 0.0025  (tolerance 0.0572)
+  development - held-out ROC gap : -0.0058
+
+  NEGATIVE CONTROL (labels shuffled on the held-out set):
+    PR-AUC  = 0.0091  (-> base rate 0.0090)
+    ROC-AUC = 0.5066  (-> 0.5)
+    collapsed to chance : YES
+
+  VERDICT : WELL_FIT
+```
+
+**Reading the result.**
+
+- **It beats the baselines on unseen cards.** Held-out ROC-AUC **0.72** (vs 0.5
+  for random) and PR-AUC **0.057** — **6.3×** the 0.9 % base rate a majority
+  classifier scores. At a 10 % precision operating point it recovers **47.6 %** of
+  held-out fraud, an order of magnitude above the base rate caught by random
+  review.
+- **It generalises.** Cross-validation and the held-out test agree to within
+  **0.0025** ROC-AUC, far inside the fold noise — so this is not the luck of one
+  split.
+- **The signal is genuine.** With labels shuffled, PR-AUC falls to the base rate
+  and ROC-AUC to 0.5: the control **collapses to chance**, which rules out leakage
+  in the evaluation.
+- **Verdict: well-fit** — clears the baseline, agrees across splits, and is not
+  explained away by the control.
+
+This is the discrimination a deterministic, fully explainable rule engine reaches
+on real fraud with no training: a strong first-line filter whose every decision
+carries a reason. The precision ceiling is the natural limit of a handful of
+binary rules sharing one velocity window; the concrete ways to lift it —
+per-rule windows (the amount-spike rule wants weeks, a burst rule wants minutes),
+operator-calibrated weights, and a learned model contributing to the *same* 0–100
+score behind the same audit trail — are exactly the extensions in
+[the scope note](#a-note-on-scope).
+
+**Run it:**
+
+```bash
+mvn -q test -Dtest=RealDataBenchmarkTest -Dsurefire.useFile=false   # prints the block above
+```
+
 ## Design
 
 ### Why an event bus behind an interface
@@ -183,7 +278,7 @@ durable per-card ordering in production. See
 
 ### Why rules-first and explainable
 
-A deterministic rule engine is the honest core for fraud: it is auditable, tunable
+A deterministic rule engine is a strong core for fraud: it is auditable, tunable
 by operators, and correct on the clear cases without training data. Every outcome
 carries a reason string built from the actual evidence (the ratio, the distance,
 the count), so an analyst sees *why*. A model is a natural future signal, but it
@@ -204,6 +299,13 @@ transaction → `APPROVE`; a fraud sequence → `REVIEW`/`DECLINE` with the expe
 rules), and the HTTP surface via MockMvc (202 ingest, assessment read-back,
 validation `400`, unknown `404`). Async assessments are **awaited
 deterministically** with Awaitility, never slept on.
+
+It also covers the real-data benchmark: the metric implementations against
+hand-computed values (perfect separation → AUC 1.0, inverted → 0.0), the loader
+reading the vendored snapshot with the expected shape and label distribution, the
+harness reproducing `ScoringService`'s scores transaction-by-transaction, the
+scorer beating the baseline on held-out cards, the negative control collapsing to
+chance, and the fit verdict refusing to call a shuffled run well-fit.
 
 ## Documentation
 

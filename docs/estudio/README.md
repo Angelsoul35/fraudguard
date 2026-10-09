@@ -18,7 +18,11 @@ decisión.
    score.
 4. [04 — Estado de velocidad en memoria](04-estado-de-velocidad-en-memoria.md)
    Cómo funciona la ventana deslizante por tarjeta y cuáles son sus límites.
-5. [05 — Preguntas de entrevista](05-preguntas-de-entrevista.md)
+5. [06 — Benchmark con datos reales y métricas de fraude](06-benchmark-con-datos-reales.md)
+   Cómo se evalúa el *scorer* sobre fraude real: precisión, recall, PR-AUC y
+   ROC-AUC (con fórmulas y un ejemplo numérico), validación cruzada frente a
+   *held-out*, el control de etiquetas barajadas y la derivación del veredicto.
+6. [05 — Preguntas de entrevista](05-preguntas-de-entrevista.md)
    Preguntas típicas y cómo responderlas con este proyecto.
 
 ## La idea en una frase

@@ -36,7 +36,7 @@ anterior, países vistos) y luego registra `tx`. Devuelve el *snapshot* previo.
 - **Tiempo de evento**: una ráfaga reproducida o algo desordenada se juzga por los
   *timestamps* propios de las transacciones.
 
-## Los límites (honestos)
+## Los límites (y cómo extenderlos)
 
 - **Local al proceso**: el estado no se comparte entre instancias ni sobrevive a
   un reinicio. Escalar en horizontal partiría el historial de una tarjeta entre

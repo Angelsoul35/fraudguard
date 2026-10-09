@@ -7,7 +7,7 @@ Accepted.
 Fraud scoring is a streaming problem: a transaction must be scored on the back of
 what the card did seconds earlier, and the HTTP caller should not wait on that
 work. We also want the demo and the whole test suite to run with no external
-infrastructure — no broker, no database — while keeping a clear, honest path to a
+infrastructure — no broker, no database — while keeping a clear, direct path to a
 production streaming platform.
 
 If the controller called the scorer directly, the HTTP latency would include the
